@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import './App.css';
 
+const RS = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+});
 function SIPCalculator() {
   const [initialAmt, setInitialAmt] = useState(1500000)
   const [monthlyAmt, setMonthlyAmt] = useState(15000);
@@ -8,6 +12,7 @@ function SIPCalculator() {
   const [numOfYears, setNumOfYears] = useState(15);
   const [inflationRate, setInflationRate] = useState(0);
   const [yearlyData, setYearlyData] = useState([]);
+  const [maturityValue, setMaturityValue] = useState(0);
 
   useEffect(() => {
     const data = [];
@@ -17,6 +22,7 @@ function SIPCalculator() {
     const monthlyInterestRate = interestRate / 12 / 100;
     const annualInflationAdjustment = 1 + inflationRate / 100;
     let prevYearlyInterest = 0
+    let totalAmount = 0
 
     for (let year = 1; year <= numOfYears; year++) {
       const monthsInvested = year * 12;
@@ -31,7 +37,7 @@ function SIPCalculator() {
       let yearlyInterest = (FV_initial + FV_monthly) - (initialAmt + adjustedMonthlyAmt * monthsInvested);
 
       // Calculate the total amount at the end of the year including interest
-      const totalAmount = totalInvested + yearlyInterest;
+      totalAmount = totalInvested + yearlyInterest;
 
       // For initial amount's interest to be adjust every year
       yearlyInterest -= prevYearlyInterest
@@ -39,16 +45,17 @@ function SIPCalculator() {
 
       data.push({
         year,
-        monthlyAmt: adjustedMonthlyAmt.toFixed(2),
-        totalInvested: totalInvested.toFixed(2),
-        interest: yearlyInterest.toFixed(2),
-        maturityValue: totalAmount.toFixed(2),
+        monthlyAmt: adjustedMonthlyAmt,
+        totalInvested: totalInvested,
+        interest: yearlyInterest,
+        maturityValue: totalAmount,
       });
 
       // Adjust the monthly amount for the next year by the inflation rate
       adjustedMonthlyAmt *= annualInflationAdjustment;
     }
 
+    setMaturityValue(totalAmount);
     setYearlyData(data);
   }, [initialAmt, monthlyAmt, interestRate, numOfYears, inflationRate]);
 
@@ -77,6 +84,23 @@ function SIPCalculator() {
             <label>Number of Years</label>
             <input type="number" value={numOfYears} onChange={(e) => setNumOfYears(parseInt(e.target.value) || 0)} />
           </div>
+          <h2>Maturity Value: {RS.format(maturityValue)}</h2>
+          <ul>
+            {inflationRate ?
+              (
+                <>
+                  <li>Even though the estimated rate of return is {interestRate}%, if inflation rate of {inflationRate}% is static, the real rate of interest is {(100*(interestRate-inflationRate)/(100+inflationRate)).toFixed(2)}%</li>
+                <li>In {numOfYears} years, the monthly amount you can withdraw will be {RS.format(0.8333/100*maturityValue)}</li>
+                <li>Adjusted for inflation provided, this amount will probably be equivalent to {RS.format(maturityValue * ((interestRate - inflationRate) / (100 + inflationRate) / 12))} in today's value</li>
+                  <li>Try to increase your monthly investment amount so that it at least matches the current inflation rate.</li>
+                </>
+              ) :
+              (
+                <li>The maximum amount you can withdraw every month every year is {RS.format(0.8333/100*maturityValue)}</li>
+              )
+            }
+
+          </ul>
           <table>
             <thead>
               <tr>
@@ -91,10 +115,10 @@ function SIPCalculator() {
               {yearlyData.map(({ year, monthlyAmt, totalInvested, interest, maturityValue }) => (
                 <tr key={year}>
                   <td>{year}</td>
-                  <td>{monthlyAmt}</td>
-                  <td>{totalInvested}</td>
-                  <td>{interest}</td>
-                  <td>{maturityValue}</td>
+                  <td>{RS.format(monthlyAmt)}</td>
+                  <td>{RS.format(totalInvested)}</td>
+                  <td>{RS.format(interest)}</td>
+                  <td>{RS.format(maturityValue)}</td>
                 </tr>
               ))}
             </tbody>
